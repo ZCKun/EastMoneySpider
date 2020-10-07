@@ -1,5 +1,7 @@
 package search
 
+import "gorm.io/gorm"
+
 type (
 	LHBList struct {
 		Bmoney      string `json:"Bmoney"`
@@ -74,5 +76,7 @@ type (
 )
 
 
-func Search() {
+func Search(db *gorm.DB) {
+	i := &info{}
+	i.Do(db)
 }

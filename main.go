@@ -36,5 +36,6 @@ func main() {
 	if err != nil {
 		log.Fatal("init db has found error.")
 	}
-	search.Do(db)
+	// search.Do(db)
+	search.Search(db)
 }
