@@ -1,7 +1,7 @@
 package main
 
 import (
-	"EasyMoneySpider/search"
+	"EastMoneySpider/search"
 	"fmt"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -11,13 +11,13 @@ import (
 )
 
 func initDB() (*gorm.DB, error) {
-	dsn := "root:aaa111@tcp(0.0.0.0:3306)/eastmoney?charset=utf8mb4"
+	dsn := "root:aa@tcp(0.0.0.0:3306)/eastmoney?charset=utf8mb4"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		_ = fmt.Errorf("Connect mysql failed: %s\n", err)
 		return nil, err
 	} else {
-		em := search.EasyMoney{}
+		em := search.EastMoney{}
 		if !db.Migrator().HasTable(em) {
 			_ = db.Migrator().CreateTable(em)
 		}
@@ -36,6 +36,6 @@ func main() {
 	if err != nil {
 		log.Fatal("init db has found error.")
 	}
-	// search.Do(db)
+	//search.LHBListProducer(db)
 	search.Search(db)
 }

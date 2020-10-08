@@ -9,6 +9,8 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 type (
@@ -17,7 +19,7 @@ type (
 	}
 )
 
-func (i *info) fetch(m map[string]interface{}) {
+func (i *info) fetch(m map[string]interface{}, wg *sync.WaitGroup) {
 	date := m["tdate"].(string)
 	code := m["s_code"].(string)
 	body, err := u.InfoRequest(date, code)
@@ -26,6 +28,7 @@ func (i *info) fetch(m map[string]interface{}) {
 		return
 	}
 	i.parser(body, m)
+	wg.Done()
 }
 
 func (i *info) parser(body string, m map[string]interface{}) {
@@ -36,32 +39,38 @@ func (i *info) parser(body string, m map[string]interface{}) {
 	lInfo := &LHBInfo{}
 	doc.Find(".content-sepe table").Each(func(i int, s *goquery.Selection) {
 		tableClass, _ := s.Attr("class")
-		fmt.Println(tableClass)
 		if strings.Contains(tableClass, "stock-detail-tab") {
-			topBuyParser(s, lInfo)
+			lInfo.TopBuy = fmt.Sprintf("[%s]", strings.Join(topBuyParser(s)[:], ","))
 		} else {
-			topSellParser(s, lInfo)
+			lInfo.TopSell = fmt.Sprintf("[%s]", strings.Join(topSellParser(s)[:], ","))
 		}
 	})
-	fmt.Println(lInfo)
+
+	// update to sql
 	code := m["s_code"].(string)
 	date := m["tdate"].(string)
 	name := m["s_name"].(string)
 	ctypeDes := m["ctypedes"].(string)
 	dp := m["dp"].(string)
-	i.db.Model(&EasyMoney{}).Where("s_code = ? AND s_name = ? AND tdate = ? AND ctypedes = ? AND dp = ?",
-		code, name, date, ctypeDes, dp).Updates(EasyMoney{nil, lInfo})
+	i.db.Model(&EastMoney{}).Where("s_code = ? AND s_name = ? AND tdate = ? AND ctypedes = ? AND dp = ?",
+		code, name, date, ctypeDes, dp).Updates(EastMoney{nil, lInfo})
 }
 
 func (i *info) Do() {
 	var result []map[string]interface{}
-	i.db.Model(&EasyMoney{}).Select("s_code", "s_name", "tdate", "ctypedes", "dp").Find(&result)
+	i.db.Model(&EastMoney{}).Select("s_code", "s_name", "tdate", "ctypedes", "dp").Find(&result)
+	wg := &sync.WaitGroup{}
+	wg.Add(len(result))
 	for _, m := range result {
-		i.fetch(m)
+		go i.fetch(m, wg)
+		time.Sleep(time.Millisecond * 200)
 	}
+	wg.Wait()
 }
 
-func topSellParser(s *goquery.Selection, info *LHBInfo) {
+// topSellParser: parse daily five top sell
+func topSellParser(s *goquery.Selection) []string {
+	var topSellArr []string
 	for _, tr := range s.Find("tbody tr").Nodes {
 		topSell := &DealInfo{}
 		// 过滤掉最后的总计和
@@ -79,11 +88,14 @@ func topSellParser(s *goquery.Selection, info *LHBInfo) {
 			}
 		}
 		ts, _ := json.Marshal(topSell)
-		info.TopSell = append(info.TopSell, string(ts))
+		topSellArr = append(topSellArr, string(ts))
 	}
+	return topSellArr
 }
 
-func topBuyParser(s *goquery.Selection, info *LHBInfo) {
+// topBuyParser: parse daily five top buy
+func topBuyParser(s *goquery.Selection) []string {
+	var topBuyArr []string
 	for _, tr := range s.Find("tbody tr").Nodes {
 		topBuy := &DealInfo{}
 		// 过滤掉最后的总计和
@@ -101,10 +113,12 @@ func topBuyParser(s *goquery.Selection, info *LHBInfo) {
 			}
 		}
 		tb, _ := json.Marshal(topBuy)
-		info.TopBuy = append(info.TopBuy, string(tb))
+		topBuyArr = append(topBuyArr, string(tb))
 	}
+	return topBuyArr
 }
 
+// findDealInfo: find deal information
 func findDealInfo(i int, tdDoc *goquery.Document, topAny *DealInfo) {
 	switch i {
 	case 2:
@@ -133,6 +147,7 @@ func findDealInfo(i int, tdDoc *goquery.Document, topAny *DealInfo) {
 	}
 }
 
+// findSCName : find stock name and the info link
 func findSCName(td *html.Node, topAny *DealInfo) {
 	for _, a := range goquery.NewDocumentFromNode(td).Find(".sc-name a").Nodes {
 		if scName := goquery.NewDocumentFromNode(a).Text(); scName != "" {

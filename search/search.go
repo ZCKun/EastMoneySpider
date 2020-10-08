@@ -64,11 +64,11 @@ type (
 	}
 
 	LHBInfo struct {
-		TopSell []string
-		TopBuy  []string
+		TopSell string
+		TopBuy  string
 	}
 
-	EasyMoney struct {
+	EastMoney struct {
 		*LHBList
 		*LHBInfo
 	}

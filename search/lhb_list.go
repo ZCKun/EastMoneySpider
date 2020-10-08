@@ -76,7 +76,7 @@ func (ll *lhbList) save() {
 		_, _ = f.WriteString(fmt.Sprintf("%s\n", d.Value))
 		llist := &LHBList{}
 		_ = mapstructure.Decode(d.Value, llist)
-		ll.db.Create(&EasyMoney{llist, &LHBInfo{}})
+		ll.db.Create(&EastMoney{llist, &LHBInfo{}})
 	}
 }
 
@@ -123,7 +123,7 @@ func (ll *lhbList) producer() {
 	ll.wg.Done()
 }
 
-func Do(db *gorm.DB) {
+func LHBListProducer(db *gorm.DB) {
 	startDate := time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Now()
 	wg := &sync.WaitGroup{}

@@ -25,6 +25,11 @@ func (u *Utils) request(req *http.Request, retry int) (string, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if strings.Contains(err.Error(), "context deadline exceeded") {
+			if retry < 5 {
+				return u.request(req, retry+1)
+			}
+		}
 		return "", err
 	}
 
@@ -34,7 +39,7 @@ func (u *Utils) request(req *http.Request, retry int) (string, error) {
 
 	if resp.StatusCode == 502 || resp.StatusCode == 504 {
 		// 出现502或504, 尝试5次重新请求
-		if retry > 5 {
+		if retry > 10 {
 			return "", fmt.Errorf("Retry ListRequest Url %s HTTP Response Error %d 5 times.\n", url, resp.StatusCode)
 		}
 		time.Sleep(time.Second)
