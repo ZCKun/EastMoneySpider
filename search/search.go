@@ -1,6 +1,8 @@
 package search
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+)
 
 type (
 	LHBList struct {
@@ -51,22 +53,19 @@ type (
 		ZeRate      string `json:"ZeRate"`
 	}
 
-	LHBInfo struct {
-		// 买入金额
-		BuySCName string
-		BuyBuyAmount float64
-		BuyBuyAmountPropTotalTran float32
-		BuySellAmount float64
-		BuySellAmountPropTotalTran float32
-		BuyNetAmount float64
+	DealInfo struct {
+		SCName                  string  `json:"sc_name"`
+		Href                    string  `json:"href"`
+		BuyAmount               float64 `json:"buy_amount"`
+		BuyAmountPropTotalTran  string  `json:"buy_amount_prop_total_tran"`
+		SellAmount              float64 `json:"sell_amount"`
+		SellAmountPropTotalTran string  `json:"sell_amount_prop_total_tran"`
+		NetAmount               float64 `json:"net_amount"`
+	}
 
-		// 卖出金额
-		SellSCName string
-		SellBuyAmount float64
-		SellBuyAmountPropTotalTran float32
-		SellSellAmount float64
-		SellSellAmountPropTotalTran float32
-		SellNetAmount float64
+	LHBInfo struct {
+		TopSell []string
+		TopBuy  []string
 	}
 
 	EasyMoney struct {
@@ -75,8 +74,7 @@ type (
 	}
 )
 
-
 func Search(db *gorm.DB) {
-	i := &info{}
-	i.Do(db)
+	i := &info{db}
+	i.Do()
 }

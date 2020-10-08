@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
 type Utils struct{}
-
 
 func (u *Utils) request(req *http.Request, retry int) (string, error) {
 	client := &http.Client{}
@@ -39,9 +41,12 @@ func (u *Utils) request(req *http.Request, retry int) (string, error) {
 		return u.request(req, retry+1)
 	}
 
-	// respBody := transform.NewReader(resp.Body, simplifiedchinese.GB18030.NewDecoder())
-	body, _ := ioutil.ReadAll(resp.Body)
-	return string(body), nil
+	body := resp.Body
+	content, err := ioutil.ReadAll(body)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
 }
 
 func (u *Utils) ListRequest(params map[string]string) (string, error) {
@@ -56,7 +61,11 @@ func (u *Utils) ListRequest(params map[string]string) (string, error) {
 		q.Add(k, v)
 	}
 	req.URL.RawQuery = q.Encode()
-	return u.request(req, 1)
+	body, err := u.request(req, 1)
+	if err != nil {
+		return "", err
+	}
+	return body, nil
 }
 
 func (u *Utils) InfoRequest(date string, symbolCode string) (string, error) {
@@ -65,9 +74,14 @@ func (u *Utils) InfoRequest(date string, symbolCode string) (string, error) {
 	req.Header.Add("Referer", "https://data.eastmoney.com/stock/tradedetail.html")
 	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
 	req.Header.Add("Host", "data.eastmoney.com")
-	req.Header.Add("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Add("Accept-Language", "zh-CN,zh;q=0.9")
-	return u.request(req, 1)
+	body, err := u.request(req, 1)
+	c, _ := ioutil.ReadAll(transform.NewReader(strings.NewReader(body), simplifiedchinese.GB18030.NewDecoder()))
+	body = string(c)
+	if err != nil {
+		return "", err
+	}
+	return body, nil
 }
 
 // 获取请求页面url. startDate 开始日期, endDate 结束日期, page 页
