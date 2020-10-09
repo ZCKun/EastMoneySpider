@@ -36,6 +36,6 @@ func main() {
 	if err != nil {
 		log.Fatal("init db has found error.")
 	}
-	//search.LHBListProducer(db)
-	search.Search(db)
+	search.LHBListProducer(db)
+	//search.Search(db)
 }

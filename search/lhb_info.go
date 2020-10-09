@@ -24,7 +24,7 @@ func (i *info) fetch(m map[string]interface{}, wg *sync.WaitGroup) {
 	code := m["s_code"].(string)
 	body, err := u.InfoRequest(date, code)
 	if err != nil {
-		log.Printf("lhb_info:fetch:Request Info Error: %s\n", err)
+		log.Printf("lhb_info:fetch:Request Info url %s Error: %s\n", body, err)
 		return
 	}
 	i.parser(body, m)
@@ -58,12 +58,14 @@ func (i *info) parser(body string, m map[string]interface{}) {
 
 func (i *info) Do() {
 	var result []map[string]interface{}
-	i.db.Model(&EastMoney{}).Select("s_code", "s_name", "tdate", "ctypedes", "dp").Find(&result)
+	i.db.Model(&EastMoney{}).Select("s_code", "s_name", "tdate", "ctypedes", "dp", "top_buy", "top_sell").Find(&result)
 	wg := &sync.WaitGroup{}
-	wg.Add(len(result))
 	for _, m := range result {
-		go i.fetch(m, wg)
-		time.Sleep(time.Millisecond * 200)
+		if m["top_buy"] == "" && m["top_sell"] == "" {
+			wg.Add(1)
+			go i.fetch(m, wg)
+			time.Sleep(time.Millisecond * 200)
+		}
 	}
 	wg.Wait()
 }

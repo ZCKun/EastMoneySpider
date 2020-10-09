@@ -26,7 +26,8 @@ func (u *Utils) request(req *http.Request, retry int) (string, error) {
 	resp, err := client.Do(req)
 	if err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
-			if retry < 5 {
+			if retry < 10 {
+				time.Sleep(time.Second)
 				return u.request(req, retry+1)
 			}
 		}
@@ -39,7 +40,7 @@ func (u *Utils) request(req *http.Request, retry int) (string, error) {
 
 	if resp.StatusCode == 502 || resp.StatusCode == 504 {
 		// 出现502或504, 尝试5次重新请求
-		if retry > 10 {
+		if retry > 20 {
 			return "", fmt.Errorf("Retry ListRequest Url %s HTTP Response Error %d 5 times.\n", url, resp.StatusCode)
 		}
 		time.Sleep(time.Second)
@@ -68,7 +69,7 @@ func (u *Utils) ListRequest(params map[string]string) (string, error) {
 	req.URL.RawQuery = q.Encode()
 	body, err := u.request(req, 1)
 	if err != nil {
-		return "", err
+		return req.URL.RawQuery, err
 	}
 	return body, nil
 }
@@ -84,7 +85,7 @@ func (u *Utils) InfoRequest(date string, symbolCode string) (string, error) {
 	c, _ := ioutil.ReadAll(transform.NewReader(strings.NewReader(body), simplifiedchinese.GB18030.NewDecoder()))
 	body = string(c)
 	if err != nil {
-		return "", err
+		return url, err
 	}
 	return body, nil
 }

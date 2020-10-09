@@ -54,7 +54,7 @@ func (ll *lhbList) fetch(page int, wg *sync.WaitGroup) {
 	params := u.GetParams(ll.startDate, ll.endDate, page)
 	body, err := u.ListRequest(params)
 	if err != nil {
-		log.Printf("producer:ERROR:ListRequest: url HTTP Response error:%s\n", err)
+		log.Printf("producer:ERROR:ListRequest: url %s HTTP Response error:%s\n", body, err)
 		wg.Done()
 		return
 	}
