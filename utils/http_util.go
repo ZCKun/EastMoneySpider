@@ -1,4 +1,4 @@
-package search
+package utils
 
 import (
 	"bytes"
@@ -13,9 +13,9 @@ import (
 	"time"
 )
 
-type Utils struct{}
+type HttpUtil struct{}
 
-func (u *Utils) request(req *http.Request, retry int) (string, error) {
+func (u *HttpUtil) request(req *http.Request, retry int) (string, error) {
 	client := &http.Client{}
 
 	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36")
@@ -55,7 +55,8 @@ func (u *Utils) request(req *http.Request, retry int) (string, error) {
 	return string(content), nil
 }
 
-func (u *Utils) ListRequest(params map[string]string) (string, error) {
+// 榜单
+func (u *HttpUtil) ListRequest(params map[string]string) (string, error) {
 	url := "http://datainterface3.eastmoney.com//EM_DataCenter_V3/api/LHBGGDRTJ/GetLHBGGDRTJ"
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("Host", "datainterface3.eastmoney.com")
@@ -74,8 +75,10 @@ func (u *Utils) ListRequest(params map[string]string) (string, error) {
 	return body, nil
 }
 
-func (u *Utils) InfoRequest(date string, symbolCode string) (string, error) {
+// 明细
+func (u *HttpUtil) InfoRequest(date string, symbolCode string) (string, error) {
 	url := fmt.Sprintf("https://data.eastmoney.com/stock/lhb,%s,%s.html", date, symbolCode)
+	fmt.Println(url)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("Referer", "https://data.eastmoney.com/stock/tradedetail.html")
 	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
@@ -91,7 +94,7 @@ func (u *Utils) InfoRequest(date string, symbolCode string) (string, error) {
 }
 
 // 获取请求页面url. startDate 开始日期, endDate 结束日期, page 页
-func (u *Utils) GetUrl(startDate, endDate string, page int) string {
+func (u *HttpUtil) GetUrl(startDate, endDate string, page int) string {
 	var url bytes.Buffer
 	url.WriteString("http://data.eastmoney.com/DataCenter_V3/stock2016/TradeDetail/")
 	params := fmt.Sprintf(
@@ -101,7 +104,7 @@ func (u *Utils) GetUrl(startDate, endDate string, page int) string {
 	return url.String()
 }
 
-func (u *Utils) GetParams(startDate, endDate string, page int) map[string]string {
+func (u *HttpUtil) GetParams(startDate, endDate string, page int) map[string]string {
 	return map[string]string{
 		"tkn":           "eastmoney",
 		"mkt":           "0",

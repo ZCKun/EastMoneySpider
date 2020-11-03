@@ -64,8 +64,10 @@ type (
 	}
 
 	LHBInfo struct {
-		TopSell string
-		TopBuy  string
+		TopSell         string
+		TopBuy          string
+		TotalBuyAmount  float64
+		TotalSellAmount float64
 	}
 
 	EastMoney struct {

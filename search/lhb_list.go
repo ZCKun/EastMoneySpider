@@ -1,6 +1,7 @@
 package search
 
 import (
+	"EastMoneySpider/utils"
 	"container/list"
 	"encoding/json"
 	"fmt"
@@ -48,7 +49,7 @@ type (
 	}
 )
 
-var u = &Utils{}
+var u = &utils.HttpUtil{}
 
 func (ll *lhbList) fetch(page int, wg *sync.WaitGroup) {
 	params := u.GetParams(ll.startDate, ll.endDate, page)

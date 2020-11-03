@@ -1,6 +1,7 @@
 package search
 
 import (
+	"EastMoneySpider/utils"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -36,15 +37,10 @@ func (i *info) parser(body string, m map[string]interface{}) {
 	if err != nil {
 		log.Printf("lhb_info:parser:parse body to html error: %s\n", err)
 	}
-	lInfo := &LHBInfo{}
-	doc.Find(".content-sepe table").Each(func(i int, s *goquery.Selection) {
-		tableClass, _ := s.Attr("class")
-		if strings.Contains(tableClass, "stock-detail-tab") {
-			lInfo.TopBuy = fmt.Sprintf("[%s]", strings.Join(topBuyParser(s)[:], ","))
-		} else {
-			lInfo.TopSell = fmt.Sprintf("[%s]", strings.Join(topSellParser(s)[:], ","))
-		}
-	})
+
+	contentBox := doc.Find(".content-box")
+	reasons := i.reasonHandle(contentBox)
+	lInfos := i.infoHandle(contentBox)
 
 	// update to sql
 	code := m["s_code"].(string)
@@ -52,8 +48,45 @@ func (i *info) parser(body string, m map[string]interface{}) {
 	name := m["s_name"].(string)
 	ctypeDes := m["ctypedes"].(string)
 	dp := m["dp"].(string)
+
+	var lInfo *LHBInfo
+	for i, reason := range reasons {
+		if utils.ReasonContains(ctypeDes, reason) {
+			lInfo = &lInfos[i]
+		}
+	}
+
 	i.db.Model(&EastMoney{}).Where("s_code = ? AND s_name = ? AND tdate = ? AND ctypedes = ? AND dp = ?",
 		code, name, date, ctypeDes, dp).Updates(EastMoney{nil, lInfo})
+}
+
+func (i *info) infoHandle(contentBox *goquery.Selection) []LHBInfo {
+	var lInfos []LHBInfo
+	contentBox.Find(".content-sepe").Each(func(i int, s *goquery.Selection) {
+		lInfo := LHBInfo{}
+		s.Find("table").Each(func(i int, s *goquery.Selection) {
+			tableClass, _ := s.Attr("class")
+			if strings.Contains(tableClass, "stock-detail-tab") {
+				tb, totalBuyAmount := topBuyParser(s)
+				lInfo.TopBuy = fmt.Sprintf("[%s]", strings.Join(tb, ","))
+				lInfo.TotalBuyAmount = totalBuyAmount
+			} else {
+				ts, totalSellAmount := topSellParser(s)
+				lInfo.TopSell = fmt.Sprintf("[%s]", strings.Join(ts, ","))
+				lInfo.TotalSellAmount = totalSellAmount
+			}
+		})
+		lInfos = append(lInfos, lInfo)
+	})
+	return lInfos
+}
+
+func (i *info) reasonHandle(contentBox *goquery.Selection) []string {
+	var reasons []string
+	contentBox.Find(".content .data-tips").Each(func(i int, s *goquery.Selection) {
+		reasons = append(reasons, s.Find(".left").Text())
+	})
+	return reasons
 }
 
 func (i *info) Do() {
@@ -61,7 +94,12 @@ func (i *info) Do() {
 	i.db.Model(&EastMoney{}).Select("s_code", "s_name", "tdate", "ctypedes", "dp", "top_buy", "top_sell").Find(&result)
 	wg := &sync.WaitGroup{}
 	for _, m := range result {
-		if m["top_buy"] == "" && m["top_sell"] == "" {
+		//wg.Add(1)
+		//go i.fetch(m, wg)
+		//time.Sleep(time.Millisecond * 200)
+		tb := m["top_buy"]
+		ts := m["top_sell"]
+		if (tb == nil && ts == nil) || (tb == "" && ts == "") {
 			wg.Add(1)
 			go i.fetch(m, wg)
 			time.Sleep(time.Millisecond * 200)
@@ -71,8 +109,10 @@ func (i *info) Do() {
 }
 
 // topSellParser: parse daily five top sell
-func topSellParser(s *goquery.Selection) []string {
+func topSellParser(s *goquery.Selection) ([]string, float64) {
 	var topSellArr []string
+	var totalSellAmount float64
+
 	for _, tr := range s.Find("tbody tr").Nodes {
 		topSell := &DealInfo{}
 		// 过滤掉最后的总计和
@@ -91,13 +131,15 @@ func topSellParser(s *goquery.Selection) []string {
 		}
 		ts, _ := json.Marshal(topSell)
 		topSellArr = append(topSellArr, string(ts))
+		totalSellAmount += topSell.SellAmount
 	}
-	return topSellArr
+	return topSellArr, totalSellAmount
 }
 
 // topBuyParser: parse daily five top buy
-func topBuyParser(s *goquery.Selection) []string {
+func topBuyParser(s *goquery.Selection) ([]string, float64) {
 	var topBuyArr []string
+	var totalBuyAmount float64
 	for _, tr := range s.Find("tbody tr").Nodes {
 		topBuy := &DealInfo{}
 		// 过滤掉最后的总计和
@@ -116,8 +158,9 @@ func topBuyParser(s *goquery.Selection) []string {
 		}
 		tb, _ := json.Marshal(topBuy)
 		topBuyArr = append(topBuyArr, string(tb))
+		totalBuyAmount += topBuy.BuyAmount
 	}
-	return topBuyArr
+	return topBuyArr, totalBuyAmount
 }
 
 // findDealInfo: find deal information
