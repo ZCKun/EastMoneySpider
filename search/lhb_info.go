@@ -1,7 +1,6 @@
 package search
 
 import (
-	"EastMoneySpider/utils"
 	"encoding/json"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
@@ -20,41 +19,45 @@ type (
 	}
 )
 
-func (i *info) fetch(m map[string]interface{}, wg *sync.WaitGroup) {
-	date := m["tdate"].(string)
-	code := m["s_code"].(string)
+func (i *info) fetch(em EastMoney, wg *sync.WaitGroup) {
+	date := em.Tdate
+	code := em.SCode
 	body, err := u.InfoRequest(date, code)
 	if err != nil {
 		log.Printf("lhb_info:fetch:Request Info url %s Error: %s\n", body, err)
 		return
 	}
-	i.parser(body, m)
+	i.parser(body, em)
 	wg.Done()
 }
 
-func (i *info) parser(body string, m map[string]interface{}) {
+func (i *info) parser(body string, em EastMoney) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(body))
 	if err != nil {
 		log.Printf("lhb_info:parser:parse body to html error: %s\n", err)
 	}
 
 	contentBox := doc.Find(".content-box")
+	// 上榜原因明细
 	reasons := i.reasonHandle(contentBox)
 	lInfos := i.infoHandle(contentBox)
 
 	// update to sql
-	code := m["s_code"].(string)
-	date := m["tdate"].(string)
-	name := m["s_name"].(string)
-	ctypeDes := m["ctypedes"].(string)
-	dp := m["dp"].(string)
+	code := em.SCode
+	date := em.Tdate
+	name := em.SName
+	ctypeDes := em.Ctypedes
+	dp := em.DP
 
 	var lInfo *LHBInfo
-	for i, reason := range reasons {
-		if utils.ReasonContains(ctypeDes, reason) {
-			lInfo = &lInfos[i]
-		}
+	for i, _ := range reasons {
+		lInfo = &lInfos[i]
 	}
+	//for i, reason := range reasons {
+	//	if utils.ReasonContains(ctypeDes, reason) {
+	//		lInfo = &lInfos[i]
+	//	}
+	//}
 
 	i.db.Model(&EastMoney{}).Where("s_code = ? AND s_name = ? AND tdate = ? AND ctypedes = ? AND dp = ?",
 		code, name, date, ctypeDes, dp).Updates(EastMoney{nil, lInfo})
@@ -81,6 +84,7 @@ func (i *info) infoHandle(contentBox *goquery.Selection) []LHBInfo {
 	return lInfos
 }
 
+// 上榜详细原因, 一支股票可能上榜多次, 所有会有多个原因
 func (i *info) reasonHandle(contentBox *goquery.Selection) []string {
 	var reasons []string
 	contentBox.Find(".content .data-tips").Each(func(i int, s *goquery.Selection) {
@@ -90,19 +94,16 @@ func (i *info) reasonHandle(contentBox *goquery.Selection) []string {
 }
 
 func (i *info) Do() {
-	var result []map[string]interface{}
-	i.db.Model(&EastMoney{}).Select("s_code", "s_name", "tdate", "ctypedes", "dp", "top_buy", "top_sell").Find(&result)
+	var results []EastMoney
+	i.db.Select("s_code", "s_name", "tdate", "ctypedes", "dp", "top_buy", "top_sell").Find(&results)
 	wg := &sync.WaitGroup{}
-	for _, m := range result {
-		//wg.Add(1)
-		//go i.fetch(m, wg)
-		//time.Sleep(time.Millisecond * 200)
-		tb := m["top_buy"]
-		ts := m["top_sell"]
-		if (tb == nil && ts == nil) || (tb == "" && ts == "") {
+	for _, result := range results {
+		tb := result.TopBuy
+		ts := result.TopSell
+		if tb == "" && ts == "" {
 			wg.Add(1)
-			go i.fetch(m, wg)
-			time.Sleep(time.Millisecond * 200)
+			go i.fetch(result, wg)
+			time.Sleep(time.Millisecond * 240)
 		}
 	}
 	wg.Wait()

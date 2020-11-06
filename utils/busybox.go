@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// infoReason 上榜原因明细
 func ReasonContains(listReason, infoReason string) bool {
 	var text string
 

@@ -40,3 +40,12 @@ func main() {
     search.Search(db)
 	//
 }
+
+//func main() {
+//	u := utils.ReasonContains("日换手率达到24.07%", "2020-03-27 星期五  类型：换手率达20%的证券")
+//	if u {
+//		println("y")
+//	} else {
+//		println("x")
+//	}
+//}
